@@ -17,5 +17,5 @@ const isAdmin = async (req, res, next) => {
   req.adminRole = student.role
   next()
 }
-
+// test
 export default isAdmin
