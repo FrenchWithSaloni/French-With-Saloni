@@ -1067,9 +1067,9 @@ b2: [
           `👋 ${user.full_name?.split(" ")[0] || "Student"}`;
 
         try {
-          const res = await fetch(`${API}/student/dashboard`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const res = await fetch(`${API}/student/enrollments`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
 
           if (res.status === 401 || res.status === 403) {
             clearAuth();
@@ -1124,13 +1124,86 @@ showSelectionScreen();
     })
     .join("");
 }
+function renderEnrollmentShell(enrollment) {
+  const user      = getUser()
+  const firstName = user?.full_name?.split(' ')[0] || 'Student'
+
+  document.getElementById('welcome-title').textContent = `Bonjour, ${firstName}! 👋`
+  document.getElementById('welcome-sub').textContent   = `You're enrolled in ${formatCourse(enrollment.course)}`
+
+  document.getElementById('info-course').textContent   = formatCourse(enrollment.course)
+  document.getElementById('info-exam').textContent     = `${enrollment.examType || 'TEF'} Canada`
+  document.getElementById('info-enrolled').textContent = formatDate(enrollment.enrolledAt)
+
+  // Handle batch/schedule
+  const batch = enrollment.batch
+  const scheduleCard = document.getElementById('schedule-card')
+  const myCourseCard = document.getElementById('my-course-card')
+
+  if (batch) {
+    const isSelfPaced = (batch.timing || '').toLowerCase().includes('self')
+
+    if (isSelfPaced) {
+      if (scheduleCard) scheduleCard.style.display = 'none'
+      if (myCourseCard) myCourseCard.style.display = 'none'
+      const dashGrid = document.querySelector('.dashboard-grid')
+      const sidebar  = document.querySelector('.dashboard-grid .sidebar')
+      if (dashGrid) dashGrid.style.gridTemplateColumns = '1fr'
+      if (sidebar)  sidebar.style.display              = 'none'
+    } else {
+      if (scheduleCard) scheduleCard.style.display = 'block'
+      if (myCourseCard) myCourseCard.style.display = 'block'
+      const dashGrid = document.querySelector('.dashboard-grid')
+      const sidebar  = document.querySelector('.dashboard-grid .sidebar')
+      if (dashGrid) dashGrid.style.gridTemplateColumns = '1fr 320px'
+      if (sidebar)  sidebar.style.display              = 'block'
+
+      document.getElementById('schedule-container').innerHTML = `
+        <div class="schedule-item">
+          <div class="schedule-label">Batch</div>
+          <div class="schedule-val">${batch.batch_name}</div>
+        </div>
+        <div class="schedule-item">
+          <div class="schedule-label">Days</div>
+          <div class="schedule-val">${batch.days}</div>
+        </div>
+        <div class="schedule-item">
+          <div class="schedule-label">Time</div>
+          <div class="schedule-val">${batch.timing}</div>
+        </div>
+      `
+    }
+  }
+
+  // Meet link
+  const liveContainer = document.getElementById('live-class-container')
+  if (enrollment.meetLink || batch?.meet_link) {
+    const link = enrollment.meetLink || batch?.meet_link
+    liveContainer.innerHTML = `
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:.8rem;">Click to join your scheduled live class:</p>
+      <a href="${link}" target="_blank"
+        style="display:inline-flex;align-items:center;gap:.5rem;background:#1a8a1a;color:#fff;padding:.7rem 1.4rem;border-radius:10px;text-decoration:none;font-weight:700;font-size:.88rem;">
+        🎥 Join Google Meet
+      </a>
+    `
+  } else {
+    liveContainer.innerHTML = `
+      <div style="font-size:.85rem;color:var(--muted);line-height:1.6;">
+        Your Google Meet link will appear here once Saloni sets it up for your course.
+      </div>
+    `
+  }
+
+  // Progress map for level courses
+  renderProgressMap(enrollment)
+}
 
 async function chooseEnrollment(idx) {
-  // Force reset any active quiz
   clearInterval(kahootTimer)
-  kahootTimer        = null
-  currentQuizAttempt = null
+  kahootTimer         = null
+  currentQuizAttempt  = null
   cachedExamQuestions = {}
+
   const attemptScreen = document.getElementById('quiz-attempt-screen')
   const resultScreen  = document.getElementById('quiz-result-screen')
   if (attemptScreen) attemptScreen.style.display = 'none'
@@ -1144,39 +1217,15 @@ async function chooseEnrollment(idx) {
 
   const enrollment = allEnrollments[idx]
 
-  // ── Use cached data if already loaded ──────────────
-  if (enrollment.lectures) {
-    renderEnrollmentTabs()
-    renderEnrollment(enrollment)
-    return
-  }
+  // Clear tab cache when switching courses
+  enrollment._tabCache = {}
 
-  // ── First time — fetch full course data ────────────
-  document.getElementById('welcome-title').textContent = `Bonjour, ${getUser()?.full_name?.split(' ')[0] || 'Student'}! 👋`
-  document.getElementById('welcome-sub').textContent   = 'Loading your course...'
+  // Render dashboard shell immediately with basic info
+  renderEnrollmentTabs()
+  renderEnrollmentShell(enrollment)
 
-  try {
-    const res = await fetch(`${API}/student/dashboard?enrollmentId=${enrollment.enrollmentId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` }
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      showToast('Failed to load course data. Please try again.', 'error')
-      return
-    }
-
-    // Cache full data back into allEnrollments so next click is instant
-    allEnrollments[idx] = { ...enrollment, ...data.enrollment }
-
-    renderEnrollmentTabs()
-    renderEnrollment(allEnrollments[idx])
-
-  } catch (err) {
-    console.error('chooseEnrollment error:', err)
-    showToast('Failed to load course data. Please try again.', 'error')
-  }
+  // Default to lectures tab
+  switchSection('lectures')
 }
       // ── ENROLLMENT TABS ─────────────────────────────────
       function renderEnrollmentTabs() {
@@ -1214,11 +1263,9 @@ async function chooseEnrollment(idx) {
           .join("");
       }
 
-      function selectEnrollment(idx) {
-        activeEnrollmentIdx = idx;
-        renderEnrollmentTabs();
-        renderEnrollment(allEnrollments[idx]);
-      }
+     function selectEnrollment(idx) {
+  chooseEnrollment(idx)
+}
 
       // ── RENDER ONE ENROLLMENT'S DATA ────────────────────
       function renderEnrollment(data) {
@@ -1385,26 +1432,181 @@ renderWorksheets(data.worksheets || []);
         return map[level] || level;
       }
 
-      // ── SECTION TABS ───────────────────────────────────
-      function switchSection(section) {
-  document.getElementById("section-lectures").style.display  = "none";
-  document.getElementById("section-materials").style.display = "none";
-  document.getElementById("section-tests").style.display     = "none";
-  document.getElementById("section-quizzes").style.display   = "none";
-  document.getElementById("section-examq").style.display     = "none";
+      function renderLectures(groupedLectures) {
+  const container = document.getElementById('lectures-container')
+  const levelTabs = document.getElementById('level-tabs')
 
-  document.getElementById(`section-${section}`).style.display = "block";
+  if (!groupedLectures || Object.keys(groupedLectures).length === 0) {
+    levelTabs.innerHTML = ''
+    container.innerHTML = `
+      <div class="no-lectures">
+        <div class="no-lectures-icon">🎬</div>
+        <div class="no-lectures-title">No lectures yet</div>
+        <div class="no-lectures-sub">Saloni will upload your course recordings here. Check back soon!</div>
+      </div>`
+    return
+  }
 
-  ["lectures", "materials", "tests", "quizzes", "examq"].forEach((s) => {
-    const tab = document.getElementById(`sec-tab-${s}`);
-    if (tab) {
-      tab.style.background = s === section ? "var(--blue)" : "var(--pale)";
-      tab.style.color      = s === section ? "#fff" : "var(--blue)";
+  const levels = Object.keys(groupedLectures).sort()
+
+  // Render level tabs if more than one level
+  if (levels.length > 1) {
+    levelTabs.innerHTML = levels.map((level, idx) => `
+      <button onclick="switchLevel('${level}')" id="level-tab-${level.replace(/\s+/g,'-')}"
+        style="padding:.45rem 1rem;border-radius:20px;font-size:.8rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:none;background:${idx === 0 ? 'var(--blue)' : 'var(--pale)'};color:${idx === 0 ? '#fff' : 'var(--blue)'};transition:all .25s;">
+        ${level}
+      </button>
+    `).join('')
+  } else {
+    levelTabs.innerHTML = ''
+  }
+
+  // Store for level switching
+  window._groupedLectures = groupedLectures
+
+  // Show first level by default
+  showLecturesForLevel(levels[0], groupedLectures)
+}
+
+function switchLevel(level) {
+  const groupedLectures = window._groupedLectures || {}
+  const levels = Object.keys(groupedLectures).sort()
+
+  // Update tab styles
+  levels.forEach(l => {
+    const btn = document.getElementById(`level-tab-${l.replace(/\s+/g,'-')}`)
+    if (btn) {
+      btn.style.background = l === level ? 'var(--blue)' : 'var(--pale)'
+      btn.style.color      = l === level ? '#fff' : 'var(--blue)'
     }
-  });
+  })
 
-  if (section === "quizzes") loadQuizzesForStudent();
-  if (section === "examq")   loadExamQuestionsForStudent();
+  showLecturesForLevel(level, groupedLectures)
+}
+
+function showLecturesForLevel(level, groupedLectures) {
+  const container = document.getElementById('lectures-container')
+  const lectures  = groupedLectures[level] || []
+
+  if (lectures.length === 0) {
+    container.innerHTML = `
+      <div class="no-lectures">
+        <div class="no-lectures-icon">🎬</div>
+        <div class="no-lectures-title">No lectures for ${level} yet</div>
+        <div class="no-lectures-sub">Saloni will upload recordings here soon.</div>
+      </div>`
+    return
+  }
+
+  container.innerHTML = lectures.map(l => `
+    <div class="lecture-card" style="display:flex;align-items:center;gap:1.2rem;padding:1.2rem 1.5rem;margin-bottom:.8rem;">
+      <div style="font-size:2rem;flex-shrink:0;">🎬</div>
+      <div style="flex:1;min-width:0;">
+        <div class="lecture-title">${l.title}</div>
+        ${l.description ? `<div class="lecture-desc">${l.description}</div>` : ''}
+      </div>
+      ${l.url
+        ? `<a href="lecture.html?id=${l.id}" target="_blank"
+            style="flex-shrink:0;background:var(--blue);color:#fff;padding:.5rem 1.1rem;border-radius:8px;font-size:.82rem;font-weight:700;text-decoration:none;white-space:nowrap;"
+            onmouseover="this.style.background='var(--sky)'"
+            onmouseout="this.style.background='var(--blue)'">
+            ▶ Watch
+          </a>`
+        : `<span style="font-size:.78rem;color:var(--muted);">Coming soon</span>`
+      }
+    </div>
+  `).join('')
+}
+
+      // ── SECTION TABS ───────────────────────────────────
+      async function switchSection(section) {
+  document.getElementById("section-lectures").style.display  = "none"
+  document.getElementById("section-materials").style.display = "none"
+  document.getElementById("section-tests").style.display     = "none"
+  document.getElementById("section-quizzes").style.display   = "none"
+  document.getElementById("section-examq").style.display     = "none"
+
+  document.getElementById(`section-${section}`).style.display = "block"
+
+  ;["lectures", "materials", "tests", "quizzes", "examq"].forEach(s => {
+    const tab = document.getElementById(`sec-tab-${s}`)
+    if (tab) {
+      tab.style.background = s === section ? "var(--blue)" : "var(--pale)"
+      tab.style.color      = s === section ? "#fff" : "var(--blue)"
+    }
+  })
+
+  const enrollment = allEnrollments[activeEnrollmentIdx]
+  if (!enrollment) return
+
+  // Init cache
+  if (!enrollment._tabCache) enrollment._tabCache = {}
+
+  if (section === 'lectures') {
+    if (enrollment._tabCache.lectures) {
+      renderLectures(enrollment._tabCache.lectures.groupedLectures)
+    } else {
+      document.getElementById('lectures-container').innerHTML = `
+        <div class="no-lectures">
+          <div class="no-lectures-icon">⏳</div>
+          <div class="no-lectures-title">Loading lectures...</div>
+        </div>`
+      try {
+        const res  = await fetch(`${API}/student/lectures/${enrollment.enrollmentId}`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        })
+        const data = await res.json()
+        enrollment._tabCache.lectures = data
+        renderLectures(data.groupedLectures)
+      } catch {
+        showToast('Failed to load lectures', 'error')
+      }
+    }
+  }
+
+  else if (section === 'materials') {
+    if (enrollment._tabCache.materials) {
+      renderMaterials(
+        enrollment._tabCache.materials.classNotes,
+        enrollment._tabCache.materials.examMaterials
+      )
+    } else {
+      document.getElementById('materials-class-container').innerHTML = `
+        <div class="no-lectures"><div class="no-lectures-icon">⏳</div><div class="no-lectures-title">Loading materials...</div></div>`
+      try {
+        const res  = await fetch(`${API}/student/materials/${enrollment.enrollmentId}`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        })
+        const data = await res.json()
+        enrollment._tabCache.materials = data
+        renderMaterials(data.classNotes, data.examMaterials)
+      } catch {
+        showToast('Failed to load materials', 'error')
+      }
+    }
+  }
+
+  else if (section === 'tests') {
+    if (enrollment._tabCache.worksheets) {
+      renderWorksheets(enrollment._tabCache.worksheets.worksheets)
+    } else {
+      document.getElementById('worksheets-container').innerHTML = `
+        <div class="no-lectures"><div class="no-lectures-icon">⏳</div><div class="no-lectures-title">Loading worksheets...</div></div>`
+      try {
+        const res  = await fetch(`${API}/student/worksheets/${enrollment.enrollmentId}`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        })
+        const data = await res.json()
+        enrollment._tabCache.worksheets = data
+        renderWorksheets(data.worksheets)
+      } catch {
+        showToast('Failed to load worksheets', 'error')
+      }
+    }
+  }
+
+  else if (section === 'quizzes') loadQuizzesForStudent()
+  else if (section === 'examq')   loadExamQuestionsForStudent()
 }
 
       function switchMaterialTab(tab) {

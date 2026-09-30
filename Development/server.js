@@ -23,7 +23,6 @@ const app = express()
 
 // ── Webhook must use raw body — register BEFORE express.json()
 app.use('/payment/webhook', express.raw({ type: 'application/json' }))
-app.use('/student', studentRoutes)
 
 // ── Middleware
 // ── Middleware
@@ -63,6 +62,7 @@ app.use('/enrollments', enrollmentRoutes)
 app.use('/contact',     contactRoutes)
 app.use('/reviews', reviewRoutes)
 app.use('/admin', adminRoutes)
+app.use('/student', studentRoutes)
 app.use('/quiz', quizRoutes)
 app.use('/exam-questions', examQuestionRoutes)
 
