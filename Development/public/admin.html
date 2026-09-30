@@ -2948,6 +2948,7 @@ async function editMaterialTitle(id, currentTitle) {
 // ── QUIZZES ─────────────────────────────────────────
 let currentQuizId = null
 let currentQuizTitle = ''
+let loadedExamQuestions = {}
 
 function switchQuizTab(tab) {
   ['list', 'create'].forEach(t => {
@@ -3609,6 +3610,7 @@ async function loadExamQuestions() {
   const examType  = document.getElementById('examq-filter-type').value
   const section   = document.getElementById('examq-filter-section').value
 
+
   container.innerHTML = '<div style="color:var(--muted);padding:1rem;">Loading...</div>'
 
   try {
@@ -3621,7 +3623,7 @@ async function loadExamQuestions() {
     const res  = await fetch(url, { headers: authHeaders() })
     const data = await res.json()
     const questions = data.questions || []
-
+questions.forEach(q => { loadedExamQuestions[q.id] = q })
     countEl.textContent = `${questions.length} questions`
 
     if (questions.length === 0) {
@@ -3668,10 +3670,16 @@ async function loadExamQuestions() {
                   </details>
                 ` : ''}
               </div>
-              <button onclick="deleteExamQuestion('${q.id}')"
-                style="background:#FEE2E2;color:#991B1B;border:none;padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;flex-shrink:0;">
-                Delete
-              </button>
+              <div style="display:flex;gap:.5rem;flex-shrink:0;">
+  <button onclick="editExamQuestion('${q.id}')"
+    style="background:rgba(19,85,160,.1);color:var(--blue);border:none;padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;">
+    ✏️ Edit
+  </button>
+  <button onclick="deleteExamQuestion('${q.id}')"
+    style="background:#FEE2E2;color:#991B1B;border:none;padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;">
+    Delete
+  </button>
+</div>
             </div>
           </div>
         `).join('')}
@@ -3680,6 +3688,149 @@ async function loadExamQuestions() {
 
   } catch(err) {
     container.innerHTML = `<div style="color:var(--muted);padding:1rem;">Failed to load questions.</div>`
+  }
+}
+
+function editExamQuestion(id) {
+  const q = loadedExamQuestions[id]
+  if (!q) return
+
+  // Switch to add tab (reuse the form)
+  switchExamQTab('add')
+
+  // Pre-fill all fields
+  document.getElementById('examq-type').value    = q.exam_type
+  document.getElementById('examq-section').value = q.section
+  updateSubSections()
+  document.getElementById('examq-subsection').value = q.sub_section
+  document.getElementById('examq-question').value   = q.question_text
+  document.getElementById('examq-answer').value     = q.model_answer || ''
+  document.getElementById('examq-year').value       = q.source_year || ''
+
+  // Show existing image preview if any
+  const preview = document.getElementById('examq-image-preview')
+  const img     = document.getElementById('examq-image-preview-img')
+  if (q.image_path) {
+    img.src = q.image_path
+    preview.style.display = 'block'
+  } else {
+    preview.style.display = 'none'
+  }
+
+  // Change form title and button to update mode
+  document.querySelector('#examq-panel-add .table-title').textContent = 'Edit Exam Question'
+  const btn = document.getElementById('examq-btn')
+  btn.textContent = 'Update Question'
+  btn.onclick     = () => updateExamQuestion(id)
+
+  // Add cancel button if not already there
+  if (!document.getElementById('examq-cancel-btn')) {
+    const cancelBtn = document.createElement('button')
+    cancelBtn.id    = 'examq-cancel-btn'
+    cancelBtn.textContent = 'Cancel'
+    cancelBtn.style.cssText = 'background:var(--pale);color:var(--blue);border:none;padding:.7rem 1.5rem;border-radius:8px;font-size:.88rem;font-weight:700;font-family:\'Nunito\',sans-serif;cursor:pointer;margin-left:.8rem;'
+    cancelBtn.onclick = resetExamQForm
+    btn.parentNode.appendChild(cancelBtn)
+  }
+}
+
+function resetExamQForm() {
+  document.querySelector('#examq-panel-add .table-title').textContent = 'Add New Exam Question'
+  const btn = document.getElementById('examq-btn')
+  btn.textContent = '+ Add Question'
+  btn.onclick     = addExamQuestion
+
+  document.getElementById('examq-question').value = ''
+  document.getElementById('examq-answer').value   = ''
+  document.getElementById('examq-year').value     = ''
+  document.getElementById('examq-image').value    = ''
+  document.getElementById('examq-image-preview').style.display = 'none'
+  document.getElementById('examq-error').style.display   = 'none'
+  document.getElementById('examq-success').style.display = 'none'
+
+  const cancelBtn = document.getElementById('examq-cancel-btn')
+  if (cancelBtn) cancelBtn.remove()
+}
+
+async function updateExamQuestion(id) {
+  const exam_type     = document.getElementById('examq-type').value
+  const section       = document.getElementById('examq-section').value
+  const sub_section   = document.getElementById('examq-subsection').value
+  const question_text = document.getElementById('examq-question').value.trim()
+  const model_answer  = document.getElementById('examq-answer').value.trim()
+  const source_year   = document.getElementById('examq-year').value
+  const imageFile     = document.getElementById('examq-image').files[0]
+
+  document.getElementById('examq-error').style.display   = 'none'
+  document.getElementById('examq-success').style.display = 'none'
+
+  if (!question_text) {
+    document.getElementById('examq-error').textContent = 'Please enter the question text.'
+    document.getElementById('examq-error').style.display = 'block'
+    return
+  }
+
+  const btn = document.getElementById('examq-btn')
+  btn.disabled = true
+  btn.textContent = 'Updating...'
+
+  try {
+    let image_path = loadedExamQuestions[id]?.image_path || null
+
+    // Upload new image if provided
+    if (imageFile) {
+      const formData = new FormData()
+      formData.append('image', imageFile)
+      formData.append('exam_type', exam_type)
+      formData.append('section', section)
+
+      const uploadRes  = await fetch(`${API}/exam-questions/admin/upload-image`, {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body:    formData
+      })
+      const uploadData = await uploadRes.json()
+
+      if (!uploadRes.ok) {
+        document.getElementById('examq-error').textContent = uploadData.error || 'Image upload failed.'
+        document.getElementById('examq-error').style.display = 'block'
+        btn.disabled = false
+        btn.textContent = 'Update Question'
+        return
+      }
+
+      image_path = uploadData.image_path
+    }
+
+    const res  = await fetch(`${API}/exam-questions/admin/${id}`, {
+      method:  'PATCH',
+      headers: authHeaders(),
+      body:    JSON.stringify({
+        exam_type, section, sub_section,
+        question_text,
+        model_answer:  model_answer  || null,
+        source_year:   source_year   || null,
+        image_path:    image_path    || null
+      })
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      document.getElementById('examq-error').textContent = data.error || 'Failed to update question.'
+      document.getElementById('examq-error').style.display = 'block'
+    } else {
+      document.getElementById('examq-success').textContent = '✅ Question updated!'
+      document.getElementById('examq-success').style.display = 'block'
+      resetExamQForm()
+      switchExamQTab('list')
+      loadExamQuestions()
+    }
+  } catch {
+    document.getElementById('examq-error').textContent = 'Server error. Please try again.'
+    document.getElementById('examq-error').style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Update Question'
   }
 }
 

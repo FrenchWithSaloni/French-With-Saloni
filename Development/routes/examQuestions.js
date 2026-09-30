@@ -13,11 +13,12 @@ const upload = multer({ storage: multer.memoryStorage() })
 router.get('/admin', verifyJWT, isAdmin, async (req, res) => {
   const { exam_type, section } = req.query
 
-  let query = supabase
+    let query = supabase
     .from('exam_questions')
     .select('*')
     .order('sub_section', { ascending: true })
     .order('order_num', { ascending: true })
+    .limit(5000)
 
   if (exam_type) query = query.eq('exam_type', exam_type)
   if (section)   query = query.eq('section', section)
@@ -97,11 +98,11 @@ router.post('/admin/upload-image', verifyJWT, isAdmin, upload.single('image'), a
 // PATCH update exam question
 router.patch('/admin/:id', verifyJWT, isAdmin, async (req, res) => {
   const { id } = req.params
-  const { question_text, model_answer, source_year, order_num, is_active } = req.body
+  const { exam_type, section, sub_section, question_text, model_answer, source_year, order_num, is_active, image_path } = req.body
 
   const { data, error } = await supabase
     .from('exam_questions')
-    .update({ question_text, model_answer, source_year, order_num, is_active })
+    .update({ exam_type, section, sub_section, question_text, model_answer, source_year, order_num, is_active, image_path })
     .eq('id', id)
     .select()
     .single()
@@ -151,7 +152,8 @@ router.get('/:examType', verifyJWT, async (req, res) => {
     .eq('exam_type', examType.toUpperCase())
     .eq('is_active', true)
     .order('sub_section', { ascending: true })
-    .order('order_num',   { ascending: true })
+    .order('order_num', { ascending: true })
+    .limit(5000)
 
   if (section) query = query.eq('section', section)
 
