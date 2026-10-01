@@ -536,34 +536,34 @@
         <div class="sidebar-badge">Admin Panel</div>
       </div>
       <nav class="sidebar-nav">
-        <div class="nav-item active" onclick="showPage('dashboard')">
-          <span class="nav-item-icon">📊</span> Dashboard
-        </div>
-        <div class="nav-item" onclick="showPage('reviews')">
-          <span class="nav-item-icon">⭐</span> Reviews
-        </div>
-        <div class="nav-item" onclick="showPage('students')">
-          <span class="nav-item-icon">👥</span> Students
-        </div>
-        <div class="nav-item" onclick="showPage('enrollments')">
-          <span class="nav-item-icon">📚</span> Enrollments
-        </div>
-        <div class="nav-item" onclick="showPage('contacts')">
-          <span class="nav-item-icon">✉️</span> Contacts
-        </div>
-        <div class="nav-item" onclick="showPage('batches')">
-  <span class="nav-item-icon">🗓️</span> Batches
+        <div class="nav-item" id="nav-dashboard" onclick="showPage('dashboard', event)">
+  <span class="nav-icon">📊</span> Dashboard
 </div>
-<div class="nav-item" onclick="showPage('lectures')">
-  <span class="nav-item-icon">🎬</span> Lectures
+<div class="nav-item" id="nav-reviews" onclick="showPage('reviews', event)">
+  <span class="nav-icon">⭐</span> Reviews
 </div>
-<div class="nav-item" onclick="showPage('materials')">
-  <span class="nav-item-icon">📚</span> Study Materials
+<div class="nav-item" id="nav-students" onclick="showPage('students', event)">
+  <span class="nav-icon">👥</span> Students
 </div>
-<div class="nav-item" onclick="showPage('quizzes', event)">
+<div class="nav-item" id="nav-enrollments" onclick="showPage('enrollments', event)">
+  <span class="nav-icon">📋</span> Enrollments
+</div>
+<div class="nav-item" id="nav-contacts" onclick="showPage('contacts', event)">
+  <span class="nav-icon">📞</span> Contacts
+</div>
+<div class="nav-item" id="nav-batches" onclick="showPage('batches', event)">
+  <span class="nav-icon">📅</span> Batches
+</div>
+<div class="nav-item" id="nav-lectures" onclick="showPage('lectures', event)">
+  <span class="nav-icon">🎬</span> Lectures
+</div>
+<div class="nav-item" id="nav-materials" onclick="showPage('materials', event)">
+  <span class="nav-icon">📚</span> Study Materials
+</div>
+<div class="nav-item" id="nav-quizzes" onclick="showPage('quizzes', event)">
   <span class="nav-icon">📝</span> Quizzes
 </div>
-<div class="nav-item" onclick="showPage('exam-questions', event)">
+<div class="nav-item" id="nav-exam-questions" onclick="showPage('exam-questions', event)">
   <span class="nav-icon">📝</span> Exam Questions
 </div>
       </nav>
@@ -1470,12 +1470,39 @@
 
     <script>
      
-      let adminToken = localStorage.getItem("fws_admin_token");
-      let currentPage = "dashboard";
-      let loadedQuestions = {} // id → question object
-      // ── STUDENT SEARCH ─────────────────────────────────
+     let adminToken = localStorage.getItem("fws_admin_token");
+let currentPage = "dashboard";
+let loadedQuestions = {}
 let allStudentsCache = []
 let allGroupedEnrollments = []
+
+function applyRoleVisibility(role) {
+  const isFullAdmin      = role === 'admin' || role === 'super_admin'
+  const isAdministration = role === 'administration'
+  const isTutor          = role === 'tutor'
+
+  const navMap = {
+    'nav-dashboard':      true,
+    'nav-reviews':        isFullAdmin,
+    'nav-students':       isFullAdmin || isAdministration,
+    'nav-enrollments':    isFullAdmin || isAdministration,
+    'nav-contacts':       isFullAdmin || isAdministration,
+    'nav-batches':        isFullAdmin || isAdministration,
+    'nav-lectures':       isFullAdmin || isTutor,
+    'nav-materials':      isFullAdmin || isTutor,
+    'nav-quizzes':        isFullAdmin || isTutor,
+    'nav-exam-questions': isFullAdmin || isTutor,
+  }
+
+  Object.entries(navMap).forEach(([id, visible]) => {
+    const el = document.getElementById(id)
+    if (el) el.style.display = visible ? 'flex' : 'none'
+  })
+}
+
+// Apply role visibility on page load
+const savedRole = localStorage.getItem('fws_admin_role')
+if (savedRole) applyRoleVisibility(savedRole)
 
 async function loadStudentsCache() {
   try {
@@ -1702,6 +1729,8 @@ function renderStudentsTable() {
     .join("");
 }
 
+
+
       
 
       
@@ -1742,12 +1771,17 @@ function renderStudentsTable() {
   return;
 }
 
-          adminToken = data.accessToken;
-          localStorage.setItem("fws_admin_token", adminToken);
-          document.getElementById("sidebar-user-name").textContent =
-            `Signed in as ${data.user.full_name?.split(" ")[0] || "Admin"}`;
-          document.getElementById("loginScreen").classList.add("hidden");
-          loadDashboard();
+         adminToken = data.accessToken;
+localStorage.setItem("fws_admin_token", adminToken);
+localStorage.setItem("fws_admin_role", data.user.role);
+
+document.getElementById("sidebar-user-name").textContent =
+  `Signed in as ${data.user.full_name?.split(" ")[0] || "Admin"}`;
+
+applyRoleVisibility(data.user.role)
+
+document.getElementById("loginScreen").classList.add("hidden");
+loadDashboard();
         } catch {
           errEl.textContent = "Server error. Please try again.";
           errEl.classList.add("visible");
@@ -1771,71 +1805,74 @@ function renderStudentsTable() {
 
       // ── DASHBOARD ──────────────────────────────────────
       async function loadDashboard() {
-        try {
-          // Load all data in parallel
-          const [reviewsRes, studentsRes, enrollmentsRes, contactsRes] =
-            await Promise.all([
-              fetch(`${API}/reviews/admin`, { headers: authHeaders() }),
-              fetch(`${API}/admin/students`, { headers: authHeaders() }),
-              fetch(`${API}/enrollments`, { headers: authHeaders() }),
-              fetch(`${API}/admin/contacts`, { headers: authHeaders() }),
-            ]);
+  try {
+    const role             = localStorage.getItem('fws_admin_role') || 'admin'
+    const isFullAdmin      = role === 'admin' || role === 'super_admin'
+    const isAdministration = role === 'administration'
 
-          const reviewsData = await reviewsRes.json();
-          const studentsData = await studentsRes.json();
-          const enrollmentsData = await enrollmentsRes.json();
-          const contactsData = await contactsRes.json();
+    // Load only what this role needs
+    const promises = []
+    if (isFullAdmin) promises.push(fetch(`${API}/reviews/admin`, { headers: authHeaders() }))
+    else promises.push(Promise.resolve({ json: () => ({ reviews: [] }) }))
 
-          const allReviews = reviewsData.reviews || [];
-          const pendingReviews = allReviews.filter(
-            (r) => r.status === "pending",
-          );
-          const allStudents = studentsData.students || [];
-          const allEnrollments = enrollmentsData.enrollments || [];
-          const uniqueActiveStudents = new Set(
-  allEnrollments.filter(e => e.status === 'active').map(e => e.student_id)
-).size;
-          const allContacts = contactsData.contacts || [];
+    promises.push(fetch(`${API}/admin/students`,  { headers: authHeaders() }))
+    promises.push(fetch(`${API}/enrollments`,      { headers: authHeaders() }))
+    promises.push(fetch(`${API}/admin/contacts`,   { headers: authHeaders() }))
 
-          // Stats
-          document.getElementById("stat-students").textContent =
-            allStudents.length;
-          document.getElementById("stat-enrollments").textContent = uniqueActiveStudents;
-          document.getElementById("stat-reviews").textContent =
-            pendingReviews.length;
-          document.getElementById("stat-contacts").textContent =
-            allContacts.length;
-          document.getElementById("pending-count").textContent =
-            `${pendingReviews.length} pending`;
+    const [reviewsRes, studentsRes, enrollmentsRes, contactsRes] = await Promise.all(promises)
 
-          // Pending reviews table
-          const tbody = document.getElementById("dashboard-reviews-body");
-          if (pendingReviews.length === 0) {
-            tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No pending reviews 🎉</td></tr>`;
-            return;
-          }
-          tbody.innerHTML = pendingReviews
-            .map(
-              (r) => `
-        <tr>
-          <td>${r.full_name}</td>
-          <td>${formatCourse(r.course)}</td>
-          <td class="stars-cell">${"★".repeat(r.rating)}</td>
-          <td class="review-text-cell" title="${r.review_text}">${r.review_text}</td>
-          <td>
-            <div class="btn-actions">
-              <button class="btn-sm btn-approve" onclick="updateReview('${r.id}','approved')">✓ Approve</button>
-              <button class="btn-sm btn-reject"  onclick="updateReview('${r.id}','rejected')">✕ Reject</button>
-            </div>
-          </td>
-        </tr>
-      `,
-            )
-            .join("");
-        } catch (err) {
-          console.error("Dashboard load error:", err);
-        }
-      }
+    const reviewsData     = await reviewsRes.json()
+    const studentsData    = await studentsRes.json()
+    const enrollmentsData = await enrollmentsRes.json()
+    const contactsData    = await contactsRes.json()
+
+    const allReviews    = reviewsData.reviews || []
+    const pendingReviews = allReviews.filter(r => r.status === 'pending')
+    const allStudents   = studentsData.students || []
+    const allEnrollments = enrollmentsData.enrollments || []
+    const uniqueActiveStudents = new Set(
+      allEnrollments.filter(e => e.status === 'active').map(e => e.student_id)
+    ).size
+    const allContacts = contactsData.contacts || []
+
+    // Stats
+    document.getElementById('stat-students').textContent    = allStudents.length
+    document.getElementById('stat-enrollments').textContent = uniqueActiveStudents
+    document.getElementById('stat-reviews').textContent     = isFullAdmin ? pendingReviews.length : '—'
+    document.getElementById('stat-contacts').textContent    = allContacts.length
+    document.getElementById('pending-count').textContent    = `${pendingReviews.length} pending`
+
+    // Pending reviews table — only for full admin
+    const tbody = document.getElementById('dashboard-reviews-body')
+    if (!isFullAdmin) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Reviews are managed by admin only.</td></tr>`
+      return
+    }
+
+    if (pendingReviews.length === 0) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No pending reviews 🎉</td></tr>`
+      return
+    }
+
+    tbody.innerHTML = pendingReviews.map(r => `
+      <tr>
+        <td>${r.full_name}</td>
+        <td>${formatCourse(r.course)}</td>
+        <td class="stars-cell">${'★'.repeat(r.rating)}</td>
+        <td class="review-text-cell" title="${r.review_text}">${r.review_text}</td>
+        <td>
+          <div class="btn-actions">
+            <button class="btn-sm btn-approve" onclick="updateReview('${r.id}','approved')">✓ Approve</button>
+            <button class="btn-sm btn-reject"  onclick="updateReview('${r.id}','rejected')">✕ Reject</button>
+          </div>
+        </td>
+      </tr>
+    `).join('')
+
+  } catch (err) {
+    console.error('Dashboard load error:', err)
+  }
+}
 
       // ── REVIEWS ────────────────────────────────────────
       async function loadReviews() {

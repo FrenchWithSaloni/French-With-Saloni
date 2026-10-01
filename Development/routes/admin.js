@@ -2,6 +2,7 @@ import { Router } from 'express'
 import supabase from '../lib/supabase.js'
 import verifyJWT from '../middleware/verifyJWT.js'
 import isAdmin from '../middleware/isAdmin.js'
+import isAdministration from '../middleware/isAdministration.js'
 import multer from 'multer'
 
 const router = Router()
