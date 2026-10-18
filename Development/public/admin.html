@@ -566,6 +566,9 @@
 <div class="nav-item" id="nav-exam-questions" onclick="showPage('exam-questions', event)">
   <span class="nav-icon">📝</span> Exam Questions
 </div>
+<div class="nav-item" id="nav-reading" onclick="showPage('reading', event)">
+  <span class="nav-icon">📖</span> Reading Exercises
+</div>
       </nav>
       <div class="sidebar-footer">
         <div class="sidebar-user" id="sidebar-user-name">
@@ -1461,6 +1464,158 @@
   </div>
 </div>
 
+<!-- READING EXERCISES -->
+<div class="page" id="page-reading">
+  <div class="page-title">Reading Exercises</div>
+  <div class="page-sub">Create reading comprehension exercises for TEF/TCF students.</div>
+
+  <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--pale);padding-bottom:.5rem;">
+    <button onclick="switchReadingTab('list')" id="reading-tab-list"
+      style="padding:.6rem 1.4rem;border-radius:8px 8px 0 0;font-size:.88rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:none;background:var(--blue);color:#fff;">
+      📋 All Exercises
+    </button>
+    <button onclick="switchReadingTab('create')" id="reading-tab-create"
+      style="padding:.6rem 1.4rem;border-radius:8px 8px 0 0;font-size:.88rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:none;background:var(--pale);color:var(--blue);">
+      + Create Exercise
+    </button>
+  </div>
+
+  <!-- ALL EXERCISES -->
+  <div id="reading-panel-list">
+    <div style="display:flex;gap:1rem;margin-bottom:1rem;align-items:center;">
+      <select id="reading-filter-type" onchange="loadReadingExercises()"
+        style="padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;">
+        <option value="">All Exams</option>
+        <option value="TEF">TEF</option>
+        <option value="TCF">TCF</option>
+      </select>
+      <div class="table-count" id="reading-count"></div>
+    </div>
+    <div id="reading-list-container"></div>
+  </div>
+
+  <!-- CREATE EXERCISE -->
+  <div id="reading-panel-create" style="display:none;">
+    <div class="table-card" style="padding:2rem;max-width:800px;">
+      <div class="table-title" style="margin-bottom:1.5rem;">Create Reading Exercise</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">EXAM TYPE</label>
+          <select id="reading-exam-type"
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;">
+            <option value="TEF">TEF</option>
+            <option value="TCF">TCF</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">ORDER NUMBER</label>
+          <input id="reading-order" type="number" min="1" value="1"
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+        </div>
+        <div style="grid-column:1/-1;">
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">TITLE</label>
+          <input id="reading-title" placeholder="e.g. Texte 1 — La Vie en Ville"
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+        </div>
+        <div style="grid-column:1/-1;">
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">PASSAGE TEXT</label>
+          <textarea id="reading-passage" placeholder="Enter the reading passage here..."
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;resize:vertical;min-height:200px;"></textarea>
+        </div>
+      </div>
+      <div id="reading-create-error" style="display:none;background:#FEE2E2;color:#991B1B;padding:.6rem .9rem;border-radius:6px;font-size:.82rem;margin-bottom:1rem;"></div>
+      <div id="reading-create-success" style="display:none;background:#D1FAE5;color:#065F46;padding:.6rem .9rem;border-radius:6px;font-size:.82rem;margin-bottom:1rem;"></div>
+      <button onclick="createReadingExercise()" id="reading-create-btn"
+        style="background:var(--blue);color:#fff;border:none;padding:.7rem 2rem;border-radius:8px;font-size:.88rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;">
+        + Create Exercise
+      </button>
+    </div>
+  </div>
+
+  <!-- QUESTIONS PANEL -->
+  <div id="reading-questions-panel" style="display:none;">
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+      <button onclick="closeReadingQuestions()"
+        style="background:var(--pale);color:var(--blue);border:none;padding:.5rem 1rem;border-radius:8px;font-size:.82rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;">
+        ← Back
+      </button>
+      <div style="font-family:'Libre Baskerville',serif;font-size:1.1rem;color:var(--navy);" id="reading-questions-title"></div>
+    </div>
+
+    <!-- Add Question Form -->
+    <div class="table-card" style="padding:1.5rem;max-width:700px;margin-bottom:1.5rem;">
+      <div class="table-title" style="margin-bottom:1rem;">Add Question</div>
+      <div style="display:grid;gap:1rem;">
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">QUESTION TEXT</label>
+          <textarea id="rq-text" placeholder="Enter question..."
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;resize:vertical;min-height:70px;"></textarea>
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">QUESTION IMAGE (optional)</label>
+          <input type="file" id="rq-image" accept="image/*"
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;background:#fff;"/>
+          <div id="rq-image-preview" style="display:none;margin-top:.6rem;">
+            <img id="rq-image-preview-img" style="max-width:100%;max-height:150px;border-radius:8px;border:1.5px solid rgba(19,85,160,.1);"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;">
+          <div>
+            <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">OPTION A</label>
+            <input id="rq-opt-a" placeholder="Option A"
+              style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+          </div>
+          <div>
+            <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">OPTION B</label>
+            <input id="rq-opt-b" placeholder="Option B"
+              style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+          </div>
+          <div>
+            <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">OPTION C</label>
+            <input id="rq-opt-c" placeholder="Option C (optional)"
+              style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+          </div>
+          <div>
+            <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">OPTION D</label>
+            <input id="rq-opt-d" placeholder="Option D (optional)"
+              style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;">
+          <div>
+            <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">CORRECT ANSWER</label>
+            <select id="rq-correct"
+              style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;">
+              <option value="a">A</option>
+              <option value="b">B</option>
+              <option value="c">C</option>
+              <option value="d">D</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">ORDER</label>
+            <input id="rq-order" type="number" min="1" value="1"
+              style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">EXPLANATION (optional)</label>
+          <textarea id="rq-explanation" placeholder="Why is this the correct answer?"
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;resize:vertical;min-height:60px;"></textarea>
+        </div>
+      </div>
+      <div id="rq-error" style="display:none;background:#FEE2E2;color:#991B1B;padding:.6rem .9rem;border-radius:6px;font-size:.82rem;margin-top:1rem;"></div>
+      <button onclick="addReadingQuestion()" id="rq-btn"
+        style="margin-top:1rem;background:var(--blue);color:#fff;border:none;padding:.7rem 2rem;border-radius:8px;font-size:.88rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;">
+        + Add Question
+      </button>
+    </div>
+
+    <!-- Questions List -->
+    <div id="reading-questions-list"></div>
+  </div>
+</div>
+
 </main>
     <!-- BATCHES -->
 
@@ -1492,6 +1647,7 @@ function applyRoleVisibility(role) {
     'nav-materials':      isFullAdmin || isTutor,
     'nav-quizzes':        isFullAdmin || isTutor,
     'nav-exam-questions': isFullAdmin || isTutor,
+    'nav-reading': isFullAdmin || isTutor,
   }
 
   Object.entries(navMap).forEach(([id, visible]) => {
@@ -3993,6 +4149,289 @@ document.getElementById('examq-image').addEventListener('change', function() {
   }
 })
 
+// ── READING EXERCISES ────────────────────────────────
+let currentReadingExerciseId = null
+
+function switchReadingTab(tab) {
+  ['list','create'].forEach(t => {
+    document.getElementById(`reading-panel-${t}`).style.display = t === tab ? 'block' : 'none'
+    const btn = document.getElementById(`reading-tab-${t}`)
+    btn.style.background = t === tab ? 'var(--blue)' : 'var(--pale)'
+    btn.style.color      = t === tab ? '#fff' : 'var(--blue)'
+  })
+  document.getElementById('reading-questions-panel').style.display = 'none'
+  if (tab === 'list') loadReadingExercises()
+}
+
+async function loadReadingExercises() {
+  const container = document.getElementById('reading-list-container')
+  const countEl   = document.getElementById('reading-count')
+  const examType  = document.getElementById('reading-filter-type').value
+
+  container.innerHTML = '<div style="color:var(--muted);padding:1rem;">Loading...</div>'
+
+  try {
+    let url = `${API}/reading/admin`
+    if (examType) url += `?exam_type=${examType}`
+
+    const res  = await fetch(url, { headers: authHeaders() })
+    const data = await res.json()
+    const exercises = data.exercises || []
+
+    countEl.textContent = `${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`
+
+    if (exercises.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:3rem;color:var(--muted);">
+          <div style="font-size:2rem;margin-bottom:.5rem;">📖</div>
+          <div>No exercises yet — create one!</div>
+        </div>`
+      return
+    }
+
+    container.innerHTML = exercises.map(e => `
+      <div style="background:#fff;border:1.5px solid rgba(19,85,160,.08);border-radius:12px;padding:1.2rem;margin-bottom:.8rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+          <div>
+            <div style="display:flex;gap:.5rem;margin-bottom:.4rem;">
+              <span style="background:var(--pale);color:var(--blue);font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">${e.exam_type}</span>
+              <span style="background:rgba(19,85,160,.06);color:var(--muted);font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">${(e.reading_questions || []).length} questions</span>
+            </div>
+            <div style="font-weight:700;color:var(--navy);">${e.title}</div>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-shrink:0;">
+            <button onclick="openReadingQuestions('${e.id}', '${e.title.replace(/'/g,"\\'")}', '${e.exam_type}')"
+              style="background:rgba(19,85,160,.1);color:var(--blue);border:none;padding:.4rem .9rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;">
+              ❓ Questions
+            </button>
+            <button onclick="deleteReadingExercise('${e.id}')"
+              style="background:#FEE2E2;color:#991B1B;border:none;padding:.4rem .9rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('')
+
+  } catch {
+    container.innerHTML = `<div style="color:var(--muted);padding:1rem;">Failed to load.</div>`
+  }
+}
+
+async function createReadingExercise() {
+  const exam_type = document.getElementById('reading-exam-type').value
+  const title     = document.getElementById('reading-title').value.trim()
+  const passage   = document.getElementById('reading-passage').value.trim()
+  const order_num = document.getElementById('reading-order').value
+
+  document.getElementById('reading-create-error').style.display   = 'none'
+  document.getElementById('reading-create-success').style.display = 'none'
+
+  if (!title || !passage) {
+    document.getElementById('reading-create-error').textContent = 'Please enter title and passage.'
+    document.getElementById('reading-create-error').style.display = 'block'
+    return
+  }
+
+  const btn = document.getElementById('reading-create-btn')
+  btn.disabled = true
+  btn.textContent = 'Creating...'
+
+  try {
+    const res  = await fetch(`${API}/reading/admin`, {
+      method:  'POST',
+      headers: authHeaders(),
+      body:    JSON.stringify({ exam_type, title, passage, order_num })
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      document.getElementById('reading-create-error').textContent = data.error || 'Failed.'
+      document.getElementById('reading-create-error').style.display = 'block'
+    } else {
+      document.getElementById('reading-create-success').textContent = '✅ Exercise created! Now add questions.'
+      document.getElementById('reading-create-success').style.display = 'block'
+      document.getElementById('reading-title').value   = ''
+      document.getElementById('reading-passage').value = ''
+      openReadingQuestions(data.exercise.id, data.exercise.title, data.exercise.exam_type)
+    }
+  } catch {
+    document.getElementById('reading-create-error').textContent = 'Server error.'
+    document.getElementById('reading-create-error').style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.textContent = '+ Create Exercise'
+  }
+}
+
+async function deleteReadingExercise(id) {
+  if (!confirm('Delete this exercise and all its questions?')) return
+  const res = await fetch(`${API}/reading/admin/${id}`, { method: 'DELETE', headers: authHeaders() })
+  if (res.ok) { showToast('Exercise deleted', 'success'); loadReadingExercises() }
+  else showToast('Failed to delete', 'error')
+}
+
+function openReadingQuestions(id, title, examType) {
+  currentReadingExerciseId = id
+  document.getElementById('reading-questions-title').textContent   = `${title} (${examType})`
+  document.getElementById('reading-panel-list').style.display      = 'none'
+  document.getElementById('reading-panel-create').style.display    = 'none'
+  document.getElementById('reading-questions-panel').style.display = 'block'
+  loadReadingQuestions(id)
+}
+
+function closeReadingQuestions() {
+  currentReadingExerciseId = null
+  document.getElementById('reading-questions-panel').style.display = 'none'
+  document.getElementById('reading-panel-list').style.display      = 'block'
+  switchReadingTab('list')
+}
+
+async function loadReadingQuestions(exerciseId) {
+  const container = document.getElementById('reading-questions-list')
+  container.innerHTML = '<div style="color:var(--muted);padding:1rem;">Loading...</div>'
+
+  const res  = await fetch(`${API}/reading/admin/${exerciseId}/questions`, { headers: authHeaders() })
+  const data = await res.json()
+  const questions = data.questions || []
+
+  if (questions.length === 0) {
+    container.innerHTML = `<div style="color:var(--muted);padding:1rem;text-align:center;">No questions yet — add one above.</div>`
+    return
+  }
+
+  container.innerHTML = questions.map((q, idx) => `
+    <div style="background:#fff;border:1.5px solid rgba(19,85,160,.08);border-radius:10px;padding:1.2rem;margin-bottom:.8rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;">
+          <div style="font-size:.72rem;font-weight:700;color:var(--sky);margin-bottom:.3rem;">Q${idx + 1}</div>
+          <div style="font-weight:700;color:var(--navy);margin-bottom:.5rem;">${q.question_text}</div>
+          ${q.image_path ? `<img src="${q.image_path}" style="max-height:100px;border-radius:6px;margin-bottom:.5rem;border:1.5px solid rgba(19,85,160,.1);"/>` : ''}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;margin-bottom:.4rem;">
+            ${(q.options || []).map((opt, i) => `
+              <div style="font-size:.82rem;padding:.3rem .6rem;border-radius:6px;background:${q.correct_answer === String.fromCharCode(97+i) ? 'rgba(16,185,129,.1)' : 'var(--pale)'};color:${q.correct_answer === String.fromCharCode(97+i) ? 'var(--green)' : 'var(--navy)'};">
+                ${String.fromCharCode(65+i)}. ${opt} ${q.correct_answer === String.fromCharCode(97+i) ? '✓' : ''}
+              </div>
+            `).join('')}
+          </div>
+          ${q.explanation ? `<div style="font-size:.78rem;color:var(--muted);padding:.4rem .7rem;background:rgba(19,85,160,.05);border-radius:6px;border-left:3px solid var(--sky);">💡 ${q.explanation}</div>` : ''}
+        </div>
+        <button onclick="deleteReadingQuestion('${q.id}')"
+          style="background:#FEE2E2;color:#991B1B;border:none;padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;flex-shrink:0;">
+          Delete
+        </button>
+      </div>
+    </div>
+  `).join('')
+}
+
+async function addReadingQuestion() {
+  const question_text  = document.getElementById('rq-text').value.trim()
+  const a              = document.getElementById('rq-opt-a').value.trim()
+  const b              = document.getElementById('rq-opt-b').value.trim()
+  const c              = document.getElementById('rq-opt-c').value.trim()
+  const d              = document.getElementById('rq-opt-d').value.trim()
+  const correct_answer = document.getElementById('rq-correct').value
+  const explanation    = document.getElementById('rq-explanation').value.trim()
+  const order_num      = document.getElementById('rq-order').value
+  const imageFile      = document.getElementById('rq-image').files[0]
+
+  document.getElementById('rq-error').style.display = 'none'
+
+  if (!question_text || !a || !b) {
+    document.getElementById('rq-error').textContent = 'Question text and at least 2 options required.'
+    document.getElementById('rq-error').style.display = 'block'
+    return
+  }
+
+  const options = [a, b, c, d].filter(o => o !== '')
+
+  const btn = document.getElementById('rq-btn')
+  btn.disabled = true
+  btn.textContent = 'Adding...'
+
+  try {
+    let image_path = null
+
+    if (imageFile) {
+      const formData = new FormData()
+      formData.append('image', imageFile)
+
+      const uploadRes  = await fetch(`${API}/reading/admin/upload-image`, {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body:    formData
+      })
+      const uploadData = await uploadRes.json()
+
+      if (!uploadRes.ok) {
+        document.getElementById('rq-error').textContent = uploadData.error || 'Image upload failed.'
+        document.getElementById('rq-error').style.display = 'block'
+        btn.disabled = false
+        btn.textContent = '+ Add Question'
+        return
+      }
+      image_path = uploadData.image_url
+    }
+
+    const res  = await fetch(`${API}/reading/admin/${currentReadingExerciseId}/questions`, {
+      method:  'POST',
+      headers: authHeaders(),
+      body:    JSON.stringify({ question_text, options, correct_answer, explanation: explanation || null, image_path, order_num })
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      document.getElementById('rq-error').textContent = data.error || 'Failed.'
+      document.getElementById('rq-error').style.display = 'block'
+    } else {
+      document.getElementById('rq-text').value        = ''
+      document.getElementById('rq-opt-a').value       = ''
+      document.getElementById('rq-opt-b').value       = ''
+      document.getElementById('rq-opt-c').value       = ''
+      document.getElementById('rq-opt-d').value       = ''
+      document.getElementById('rq-explanation').value = ''
+      document.getElementById('rq-image').value       = ''
+      document.getElementById('rq-image-preview').style.display = 'none'
+      document.getElementById('rq-order').value = parseInt(order_num) + 1
+      showToast('Question added!', 'success')
+      loadReadingQuestions(currentReadingExerciseId)
+    }
+  } catch(err) {
+    document.getElementById('rq-error').textContent = 'Server error: ' + err.message
+    document.getElementById('rq-error').style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.textContent = '+ Add Question'
+  }
+}
+
+async function deleteReadingQuestion(id) {
+  if (!confirm('Delete this question?')) return
+  const res = await fetch(`${API}/reading/admin/questions/${id}`, { method: 'DELETE', headers: authHeaders() })
+  if (res.ok) { showToast('Question deleted', 'success'); loadReadingQuestions(currentReadingExerciseId) }
+  else showToast('Failed to delete', 'error')
+}
+
+// Image preview
+document.addEventListener('DOMContentLoaded', () => {
+  const imgInput = document.getElementById('rq-image')
+  if (imgInput) {
+    imgInput.addEventListener('change', function() {
+      const file    = this.files[0]
+      const preview = document.getElementById('rq-image-preview')
+      const img     = document.getElementById('rq-image-preview-img')
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = e => { img.src = e.target.result; preview.style.display = 'block' }
+        reader.readAsDataURL(file)
+      } else {
+        preview.style.display = 'none'
+      }
+    })
+  }
+})
+
 // ── PAGE NAVIGATION ────────────────────────────────
       function showPage(page) {
         document
@@ -4015,6 +4454,7 @@ document.getElementById('examq-image').addEventListener('change', function() {
         if (page === 'materials') loadMaterials()
         if (page === 'quizzes') loadQuizzes()
         if (page === 'exam-questions') loadExamQuestions()
+        if (page === 'reading') loadReadingExercises()
       }
 
 

@@ -1849,15 +1849,18 @@ function switchTefTab(tab) {
   const content = document.getElementById('tef-materials-content')
   if (!content) return
 
-  if (!filtered || filtered.length === 0) {
-    const sectionLabel = tab === 'all' ? 'here' : `in ${tab}`
-    content.innerHTML = `
-      <div class="no-lectures">
-        <div class="no-lectures-icon">📂</div>
-        <div class="no-lectures-title">No materials ${escapeHtml(sectionLabel)} yet</div>
-        <div class="no-lectures-sub">Saloni will upload materials here soon.</div>
-      </div>`
-    return
+    if (!filtered || filtered.length === 0) {
+    if (tab !== 'reading') {
+      const sectionLabel = tab === 'all' ? 'here' : `in ${tab}`
+      content.innerHTML = `
+        <div class="no-lectures">
+          <div class="no-lectures-icon">📂</div>
+          <div class="no-lectures-title">No materials ${escapeHtml(sectionLabel)} yet</div>
+          <div class="no-lectures-sub">Saloni will upload materials here soon.</div>
+        </div>`
+      return
+    }
+    content.innerHTML = ''
   }
 
   content.innerHTML = filtered.map(m => `
@@ -1881,6 +1884,15 @@ function switchTefTab(tab) {
       }
     </div>
   `).join('')
+
+    // Load reading exercises for reading tab
+  if (tab === 'reading') {
+    const enrollment = allEnrollments[activeEnrollmentIdx]
+    const course     = enrollment?.course || ''
+    const examType   = course === 'tcf' ? 'TCF' : 'TEF'
+    loadAndRenderReadingExercises(examType, content)
+  }
+
 }
 
      function openMaterial(e, encodedUrl, type) {
@@ -2907,6 +2919,170 @@ async function renderProgressMap(enrollment) {
   } catch(err) {
     document.getElementById('progress-map-content').innerHTML =
       `<div style="font-size:.82rem;color:var(--muted);">Could not load progress.</div>`
+  }
+}
+
+// ── READING EXERCISES (STUDENT) ──────────────────────
+async function loadAndRenderReadingExercises(examType, container) {
+  try {
+    const res  = await fetch(`${API}/reading/${examType}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    })
+    const data = await res.json()
+    const exercises = data.exercises || []
+
+    if (exercises.length === 0) return
+
+    const exercisesDiv = document.createElement('div')
+    exercisesDiv.style.marginTop = '2rem'
+    exercisesDiv.innerHTML = `
+      <div style="font-family:'Libre Baskerville',serif;font-size:1rem;color:var(--navy);margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid var(--pale);">
+        📝 Reading Comprehension Exercises
+      </div>
+      ${exercises.map(e => `
+        <div id="exercise-card-${e.id}"
+          data-title="${e.title.replace(/"/g,'&quot;')}"
+          data-passage="${e.passage.replace(/"/g,'&quot;').replace(/\n/g,'&#10;')}"
+          data-questions='${JSON.stringify((e.reading_questions || []).map(q => ({
+            id: q.id,
+            question_text: q.question_text,
+            options: q.options,
+            image_path: q.image_path || null,
+            explanation: q.explanation || null
+          }))).replace(/'/g,'&#39;')}'
+          style="display:none;"></div>
+
+        <div style="background:#fff;border-radius:14px;border:1px solid rgba(19,85,160,.08);margin-bottom:1rem;padding:1.5rem;box-shadow:0 2px 8px rgba(10,35,66,.05);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+          <div>
+            <div style="font-weight:700;color:var(--navy);margin-bottom:.3rem;">${e.title}</div>
+            <div style="font-size:.78rem;color:var(--muted);">${(e.reading_questions || []).length} questions</div>
+          </div>
+          <button onclick="startReadingExercise('${e.id}')"
+            style="background:var(--blue);color:#fff;border:none;padding:.55rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;"
+            onmouseover="this.style.background='var(--sky)'"
+            onmouseout="this.style.background='var(--blue)'">
+            ▶ Start Exercise
+          </button>
+        </div>
+      `).join('')}
+    `
+    container.appendChild(exercisesDiv)
+  } catch(err) {
+    console.error('Failed to load reading exercises:', err)
+  }
+}
+
+function startReadingExercise(exerciseId) {
+  const card      = document.getElementById(`exercise-card-${exerciseId}`)
+  const title     = card.dataset.title
+  const passage   = card.dataset.passage.replace(/&#10;/g, '\n')
+  const questions = JSON.parse(card.dataset.questions)
+
+  const modal = document.createElement('div')
+  modal.id    = 'reading-exercise-modal'
+  modal.style.cssText = `
+    position:fixed;inset:0;z-index:9999;background:#f0f4f8;
+    overflow-y:auto;font-family:'Nunito',sans-serif;
+  `
+
+  modal.innerHTML = `
+    <div style="background:var(--navy);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;">
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <button onclick="closeReadingExercise()"
+          style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:.45rem 1rem;border-radius:8px;font-size:.82rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;">
+          ← Back
+        </button>
+        <div>
+          <div style="color:rgba(255,255,255,.6);font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Reading Comprehension</div>
+          <div style="color:#fff;font-weight:700;font-size:.9rem;">${title}</div>
+        </div>
+      </div>
+      <div style="color:rgba(255,255,255,.6);font-size:.82rem;">${questions.length} question${questions.length !== 1 ? 's' : ''}</div>
+    </div>
+
+    <div style="max-width:860px;margin:0 auto;padding:2rem 1.5rem;">
+      <!-- Passage -->
+      <div style="background:#fff;border-radius:16px;padding:2rem;margin-bottom:2rem;box-shadow:0 2px 12px rgba(10,35,66,.06);border:1px solid rgba(19,85,160,.06);">
+        <div style="font-size:.72rem;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;">📄 Reading Passage</div>
+        <div style="font-size:.95rem;color:#334155;line-height:2;white-space:pre-wrap;font-family:'Libre Baskerville',serif;">${passage}</div>
+      </div>
+
+      <!-- Questions -->
+      <div style="font-size:.72rem;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;">❓ Questions</div>
+      ${questions.map((q, idx) => `
+        <div id="rq-card-${q.id}" style="background:#fff;border-radius:14px;padding:1.5rem;margin-bottom:1rem;box-shadow:0 2px 8px rgba(10,35,66,.05);border:1px solid rgba(19,85,160,.06);">
+          <div style="font-weight:700;color:var(--navy);margin-bottom:.8rem;font-size:.95rem;line-height:1.5;">${idx + 1}. ${q.question_text}</div>
+          ${q.image_path ? `
+            <div style="margin-bottom:1rem;">
+              <img src="${q.image_path}" style="max-width:100%;border-radius:10px;border:1.5px solid rgba(19,85,160,.1);cursor:pointer;"
+                onclick="openImageFullscreen('${q.image_path}')" title="Click to enlarge"/>
+            </div>
+          ` : ''}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+            ${(q.options || []).map((opt, i) => `
+              <button onclick="checkReadingAnswer('${q.id}', '${String.fromCharCode(97+i)}', this)"
+                data-letter="${String.fromCharCode(97+i)}"
+                style="background:#f8faff;color:var(--navy);border:2px solid rgba(19,85,160,.1);border-radius:12px;padding:.9rem 1rem;font-size:.88rem;font-weight:600;font-family:'Nunito',sans-serif;cursor:pointer;text-align:left;display:flex;align-items:center;gap:.7rem;transition:all .2s;">
+                <span style="min-width:28px;height:28px;border-radius:7px;background:var(--pale);color:var(--blue);font-weight:700;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  ${String.fromCharCode(65+i)}
+                </span>
+                ${opt}
+              </button>
+            `).join('')}
+          </div>
+          <div id="rq-feedback-${q.id}" style="display:none;margin-top:.8rem;padding:.7rem 1rem;border-radius:8px;font-size:.85rem;"></div>
+        </div>
+      `).join('')}
+    </div>
+  `
+
+  document.body.appendChild(modal)
+  document.body.style.overflow = 'hidden'
+}
+
+function closeReadingExercise() {
+  const modal = document.getElementById('reading-exercise-modal')
+  if (modal) modal.remove()
+  document.body.style.overflow = ''
+}
+
+async function checkReadingAnswer(questionId, answer, btn) {
+  const card    = document.getElementById(`rq-card-${questionId}`)
+  const buttons = card.querySelectorAll('button[data-letter]')
+  buttons.forEach(b => { b.style.cursor = 'not-allowed'; b.onclick = null })
+
+  try {
+    const res  = await fetch(`${API}/reading/check-answer`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ question_id: questionId, answer })
+    })
+    const data = await res.json()
+
+    btn.style.background  = data.correct ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.1)'
+    btn.style.borderColor = data.correct ? 'rgba(16,185,129,.4)'  : 'rgba(239,68,68,.4)'
+    btn.style.color       = data.correct ? '#059669' : '#ef4444'
+
+    if (!data.correct) {
+      buttons.forEach(b => {
+        if (b.dataset.letter === data.correct_answer) {
+          b.style.background  = 'rgba(16,185,129,.15)'
+          b.style.borderColor = 'rgba(16,185,129,.4)'
+          b.style.color       = '#059669'
+        }
+      })
+    }
+
+    const feedback = document.getElementById(`rq-feedback-${questionId}`)
+    feedback.style.display    = 'block'
+    feedback.style.background = data.correct ? 'rgba(16,185,129,.08)' : 'rgba(239,68,68,.06)'
+    feedback.style.border     = `1px solid ${data.correct ? 'rgba(16,185,129,.2)' : 'rgba(239,68,68,.2)'}`
+    feedback.innerHTML = `
+      <strong style="color:${data.correct ? '#059669' : '#ef4444'};">${data.correct ? '✅ Correct!' : '❌ Incorrect'}</strong>
+      ${data.explanation ? `<div style="color:var(--muted);margin-top:.3rem;">💡 ${data.explanation}</div>` : ''}
+    `
+  } catch {
+    showToast('Failed to check answer', 'error')
   }
 }
 
