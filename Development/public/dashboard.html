@@ -798,6 +798,10 @@ fbq('track', 'PageView');
     style="padding:.5rem 1.2rem;border-radius:20px;font-size:.85rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:none;background:var(--pale);color:var(--blue);transition:all .25s;">
     🎙️ Speaking
   </button>
+  <button onclick="switchExamQSection('reading')" id="examq-sec-reading"
+  style="padding:.5rem 1.2rem;border-radius:20px;font-size:.85rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:none;background:var(--pale);color:var(--blue);transition:all .25s;">
+  📖 Reading
+</button>
 </div>
 
 <!-- Part sub-tabs (shown after section is selected) -->
@@ -2704,7 +2708,7 @@ async function switchExamQSection(section) {
   currentExamQSection = section
   currentExamQPart    = 'Part-1'
 
-  ;['writing','speaking'].forEach(s => {
+  ;['writing','speaking','reading'].forEach(s => {
     const btn = document.getElementById(`examq-sec-${s}`)
     if (btn) {
       btn.style.background = s === section ? 'var(--blue)' : 'var(--pale)'
@@ -2713,8 +2717,15 @@ async function switchExamQSection(section) {
   })
 
   const enrollment = allEnrollments[activeEnrollmentIdx]
-  const course   = enrollment?.course || ''
-const examType = course === 'tcf' ? 'TCF' : 'TEF'
+  const course     = enrollment?.course || ''
+  const examType   = course === 'tcf' ? 'TCF' : 'TEF'
+
+  // Reading exercises have their own layout, so there are no Part tabs
+  if (section === 'reading') {
+    document.getElementById('examq-part-tabs').innerHTML = ''
+    await renderReadingInExamQ(examType)
+    return
+  }
 
   // Fetch if not cached
   if (!cachedExamQuestions[section]) {
@@ -2751,6 +2762,30 @@ const examType = course === 'tcf' ? 'TCF' : 'TEF'
         <div class="no-lectures-sub">Saloni will add questions here soon.</div>
       </div>`
   }
+}
+
+async function renderReadingInExamQ(examType) {
+  const content = document.getElementById('examq-student-content')
+  content.innerHTML = `<div style="color:var(--muted);font-size:.85rem;padding:1rem;">Loading reading exercises...</div>`
+
+  // Build off-screen first, then attach only if the student is still on Reading
+  const holder       = document.createElement('div')
+  const hasExercises = await loadAndRenderReadingExercises(examType, holder)
+
+  if (currentExamQSection !== 'reading') return
+
+  if (!hasExercises) {
+    content.innerHTML = `
+      <div class="no-lectures">
+        <div class="no-lectures-icon">📖</div>
+        <div class="no-lectures-title">No reading exercises yet</div>
+        <div class="no-lectures-sub">Saloni will add reading exercises here soon.</div>
+      </div>`
+    return
+  }
+
+  content.innerHTML = ''
+  content.appendChild(holder)
 }
 
 function switchExamQPart(part) {
@@ -2923,52 +2958,52 @@ async function renderProgressMap(enrollment) {
 }
 
 // ── READING EXERCISES (STUDENT) ──────────────────────
+const readingExercisesCache = {}
+
 async function loadAndRenderReadingExercises(examType, container) {
   try {
-    const res  = await fetch(`${API}/reading/${examType}`, {
-      headers: { Authorization: `Bearer ${getToken()}` }
-    })
-    const data = await res.json()
-    const exercises = data.exercises || []
+    if (!readingExercisesCache[examType]) {
+      const res  = await fetch(`${API}/reading/${examType}`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      })
+      const data = await res.json()
+      readingExercisesCache[examType] = data.exercises || []
+    }
 
-    if (exercises.length === 0) return
+    const exercises = readingExercisesCache[examType]
+    if (exercises.length === 0) return false
 
-    const exercisesDiv = document.createElement('div')
-    exercisesDiv.style.marginTop = '2rem'
-    exercisesDiv.innerHTML = `
-      <div style="font-family:'Libre Baskerville',serif;font-size:1rem;color:var(--navy);margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid var(--pale);">
-        📝 Reading Comprehension Exercises
-      </div>
-      ${exercises.map(e => `
-        <div id="exercise-card-${e.id}"
-          data-title="${e.title.replace(/"/g,'&quot;')}"
-          data-passage="${e.passage.replace(/"/g,'&quot;').replace(/\n/g,'&#10;')}"
-          data-questions='${JSON.stringify((e.reading_questions || []).map(q => ({
-            id: q.id,
-            question_text: q.question_text,
-            options: q.options,
-            image_path: q.image_path || null,
-            explanation: q.explanation || null
-          }))).replace(/'/g,'&#39;')}'
-          style="display:none;"></div>
+    container.innerHTML = exercises.map(e => `
+      <div id="exercise-card-${e.id}"
+        data-title="${e.title.replace(/"/g,'&quot;')}"
+        data-passage="${e.passage.replace(/"/g,'&quot;').replace(/\n/g,'&#10;')}"
+        data-questions='${JSON.stringify((e.reading_questions || []).map(q => ({
+          id: q.id,
+          question_text: q.question_text,
+          options: q.options,
+          image_path: q.image_path || null,
+          explanation: q.explanation || null
+        }))).replace(/'/g,'&#39;')}'
+        style="display:none;"></div>
 
-        <div style="background:#fff;border-radius:14px;border:1px solid rgba(19,85,160,.08);margin-bottom:1rem;padding:1.5rem;box-shadow:0 2px 8px rgba(10,35,66,.05);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
-          <div>
-            <div style="font-weight:700;color:var(--navy);margin-bottom:.3rem;">${e.title}</div>
-            <div style="font-size:.78rem;color:var(--muted);">${(e.reading_questions || []).length} questions</div>
-          </div>
-          <button onclick="startReadingExercise('${e.id}')"
-            style="background:var(--blue);color:#fff;border:none;padding:.55rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;"
-            onmouseover="this.style.background='var(--sky)'"
-            onmouseout="this.style.background='var(--blue)'">
-            ▶ Start Exercise
-          </button>
+      <div style="background:#fff;border-radius:14px;border:1px solid rgba(19,85,160,.08);margin-bottom:1rem;padding:1.5rem;box-shadow:0 2px 8px rgba(10,35,66,.05);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <div style="font-weight:700;color:var(--navy);margin-bottom:.3rem;">${e.title}</div>
+          <div style="font-size:.78rem;color:var(--muted);">${(e.reading_questions || []).length} questions · Reading Comprehension</div>
         </div>
-      `).join('')}
-    `
-    container.appendChild(exercisesDiv)
-  } catch(err) {
+        <button onclick="startReadingExercise('${e.id}')"
+          style="background:var(--blue);color:#fff;border:none;padding:.55rem 1.2rem;border-radius:8px;font-size:.85rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;"
+          onmouseover="this.style.background='var(--sky)'"
+          onmouseout="this.style.background='var(--blue)'">
+          ▶ Start Exercise
+        </button>
+      </div>
+    `).join('')
+
+    return true
+  } catch (err) {
     console.error('Failed to load reading exercises:', err)
+    return false
   }
 }
 
