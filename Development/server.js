@@ -15,6 +15,7 @@ import studentRoutes from './routes/student.js'
 import quizRoutes from './routes/quiz.js'
 import examQuestionRoutes from './routes/examQuestions.js'
 import readingRoutes from './routes/reading.js'
+import trialRoutes from './routes/trials.js'
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -67,6 +68,7 @@ app.use('/student', studentRoutes)
 app.use('/quiz', quizRoutes)
 app.use('/exam-questions', examQuestionRoutes)
 app.use('/reading', readingRoutes)
+app.use('/trials', trialRoutes)
 
 // ── Health check
 app.get('/health', (_, res) => res.json({ status: 'ok' }))

@@ -569,6 +569,9 @@
 <div class="nav-item" id="nav-reading" onclick="showPage('reading', event)">
   <span class="nav-icon">📖</span> Reading Exercises
 </div>
+<div class="nav-item" id="nav-trials" onclick="showPage('trials', event)">
+  <span class="nav-icon">🗓️</span> Demo Classes
+</div>
       </nav>
       <div class="sidebar-footer">
         <div class="sidebar-user" id="sidebar-user-name">
@@ -1616,6 +1619,84 @@
   </div>
 </div>
 
+<!-- DEMO CLASSES -->
+<div class="page" id="page-trials">
+  <div class="page-title">Demo Classes</div>
+  <div class="page-sub">Create demo class slots with a Meet link. Visitors book on the website and get everything by email.</div>
+
+  <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--pale);padding-bottom:.5rem;">
+    <button onclick="switchTrialTab('slots')" id="trial-tab-slots"
+      style="padding:.6rem 1.4rem;border-radius:8px 8px 0 0;font-size:.88rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:none;background:var(--blue);color:#fff;">
+      🗓️ Slots
+    </button>
+    <button onclick="switchTrialTab('bookings')" id="trial-tab-bookings"
+      style="padding:.6rem 1.4rem;border-radius:8px 8px 0 0;font-size:.88rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:none;background:var(--pale);color:var(--blue);">
+      📋 Bookings
+    </button>
+  </div>
+
+  <!-- SLOTS -->
+  <div id="trial-panel-slots">
+    <div class="table-card" style="padding:1.5rem;margin-bottom:1.5rem;max-width:800px;">
+      <div class="table-title" style="margin-bottom:1rem;">Add Demo Slot</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:1rem;margin-bottom:1rem;">
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">DATE & TIME (Toronto)</label>
+          <input id="slot-datetime" type="datetime-local"
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">GOOGLE MEET LINK</label>
+          <input id="slot-meet" placeholder="https://meet.google.com/..."
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--muted);display:block;margin-bottom:.4rem;">MAX SEATS</label>
+          <input id="slot-max" type="number" min="1" value="10"
+            style="width:100%;padding:.6rem;border:1.5px solid rgba(19,85,160,.15);border-radius:6px;font-family:'Nunito',sans-serif;font-size:.85rem;"/>
+        </div>
+      </div>
+      <button onclick="addTrialSlot()"
+        style="background:var(--blue);color:#fff;border:none;padding:.65rem 1.6rem;border-radius:8px;font-size:.85rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;">
+        + Add Slot
+      </button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">All Slots</div>
+        <div class="table-count" id="slots-count"></div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Date & Time</th><th>Meet Link</th><th>Booked</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="slots-body">
+          <tr class="empty-row"><td colspan="5">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BOOKINGS -->
+  <div id="trial-panel-bookings" style="display:none;">
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Bookings</div>
+        <div class="table-count" id="bookings-count"></div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Phone</th><th>Class</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="bookings-body">
+          <tr class="empty-row"><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 </main>
     <!-- BATCHES -->
 
@@ -1648,6 +1729,7 @@ function applyRoleVisibility(role) {
     'nav-quizzes':        isFullAdmin || isTutor,
     'nav-exam-questions': isFullAdmin || isTutor,
     'nav-reading': isFullAdmin || isTutor,
+    'nav-trials': isFullAdmin || isAdministration,
   }
 
   Object.entries(navMap).forEach(([id, visible]) => {
@@ -3654,6 +3736,155 @@ body: JSON.stringify({ question_text: questionText, question_type: type, options
   }
 }
 
+// ── DEMO CLASSES ─────────────────────────────────────
+// Names/emails come from the public booking form, so escape them before rendering
+function escTrial(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]))
+}
+
+const fmtTrialDate = (iso) => new Date(iso).toLocaleDateString('en-CA', {
+  weekday: 'short', month: 'short', day: 'numeric',
+  hour: '2-digit', minute: '2-digit', timeZone: 'America/Toronto'
+})
+
+function switchTrialTab(tab) {
+  ['slots', 'bookings'].forEach(t => {
+    document.getElementById(`trial-panel-${t}`).style.display = t === tab ? 'block' : 'none'
+    const btn = document.getElementById(`trial-tab-${t}`)
+    btn.style.background = t === tab ? 'var(--blue)' : 'var(--pale)'
+    btn.style.color      = t === tab ? '#fff' : 'var(--blue)'
+  })
+  if (tab === 'slots')    loadTrialSlots()
+  if (tab === 'bookings') loadTrialBookings()
+}
+
+async function loadTrialSlots() {
+  const tbody   = document.getElementById('slots-body')
+  const countEl = document.getElementById('slots-count')
+
+  try {
+    const res   = await fetch(`${API}/trials/admin/slots`, { headers: authHeaders() })
+    const data  = await res.json()
+    const slots = data.slots || []
+
+    countEl.textContent = `${slots.length} slot${slots.length !== 1 ? 's' : ''}`
+
+    if (slots.length === 0) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No slots yet — add one above</td></tr>`
+      return
+    }
+
+    tbody.innerHTML = slots.map(s => {
+      const isPast = new Date(s.scheduled_at) < new Date()
+      const isFull = s.current_bookings >= s.max_bookings
+      const label  = isPast ? 'Past' : isFull ? 'Full' : 'Open'
+      const cls    = isPast ? 'badge-inactive' : isFull ? 'badge-pending' : 'badge-active'
+
+      return `
+        <tr>
+          <td>${fmtTrialDate(s.scheduled_at)}</td>
+          <td><a href="${escTrial(s.meet_link)}" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700;">🎥 Open</a></td>
+          <td style="text-align:center;">${s.current_bookings} / ${s.max_bookings}</td>
+          <td><span class="badge ${cls}">${label}</span></td>
+          <td><button onclick="deleteTrialSlot('${s.id}')" class="btn-sm btn-reject">Delete</button></td>
+        </tr>`
+    }).join('')
+  } catch {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Failed to load slots</td></tr>`
+  }
+}
+
+async function addTrialSlot() {
+  const datetime     = document.getElementById('slot-datetime').value
+  const meet_link    = document.getElementById('slot-meet').value.trim()
+  const max_bookings = parseInt(document.getElementById('slot-max').value) || 1
+
+  if (!datetime || !meet_link) {
+    showToast('Please enter the date/time and Meet link', 'error')
+    return
+  }
+  if (!meet_link.startsWith('https://')) {
+    showToast('The Meet link must start with https://', 'error')
+    return
+  }
+
+  const res = await fetch(`${API}/trials/admin/slots`, {
+    method:  'POST',
+    headers: authHeaders(),
+    body:    JSON.stringify({ scheduled_at: new Date(datetime).toISOString(), meet_link, max_bookings })
+  })
+
+  if (res.ok) {
+    showToast('Slot added!', 'success')
+    document.getElementById('slot-datetime').value = ''
+    document.getElementById('slot-meet').value     = ''
+    loadTrialSlots()
+  } else {
+    const data = await res.json().catch(() => ({}))
+    showToast(data.error || 'Failed to add slot', 'error')
+  }
+}
+
+async function deleteTrialSlot(id) {
+  if (!confirm('Delete this slot? Its bookings will be deleted too (emails already scheduled will still send).')) return
+
+  const res = await fetch(`${API}/trials/admin/slots/${id}`, { method: 'DELETE', headers: authHeaders() })
+
+  if (res.ok) { showToast('Slot deleted', 'success'); loadTrialSlots() }
+  else showToast('Failed to delete slot', 'error')
+}
+
+async function loadTrialBookings() {
+  const tbody   = document.getElementById('bookings-body')
+  const countEl = document.getElementById('bookings-count')
+
+  try {
+    const res      = await fetch(`${API}/trials/admin/bookings`, { headers: authHeaders() })
+    const data     = await res.json()
+    const bookings = data.bookings || []
+
+    countEl.textContent = `${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`
+
+    if (bookings.length === 0) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No bookings yet</td></tr>`
+      return
+    }
+
+    tbody.innerHTML = bookings.map(b => {
+      const cls = { confirmed: 'badge-active', completed: 'badge-approved', cancelled: 'badge-inactive' }[b.status] || 'badge-pending'
+      return `
+        <tr>
+          <td><strong>${escTrial(b.student_name)}</strong></td>
+          <td>${escTrial(b.student_email)}</td>
+          <td>${escTrial(b.student_phone)}</td>
+          <td>${b.trial_slots?.scheduled_at ? fmtTrialDate(b.trial_slots.scheduled_at) : '—'}</td>
+          <td><span class="badge ${cls}">${escTrial(b.status)}</span></td>
+          <td>
+            <div class="btn-actions">
+              ${b.status === 'confirmed' ? `<button onclick="setBookingStatus('${b.id}','completed')" class="btn-sm btn-approve">✓ Attended</button>` : ''}
+              ${b.status !== 'cancelled' ? `<button onclick="setBookingStatus('${b.id}','cancelled')" class="btn-sm btn-reject">Cancel</button>` : ''}
+            </div>
+          </td>
+        </tr>`
+    }).join('')
+  } catch {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Failed to load bookings</td></tr>`
+  }
+}
+
+async function setBookingStatus(id, status) {
+  const res = await fetch(`${API}/trials/admin/bookings/${id}`, {
+    method:  'PATCH',
+    headers: authHeaders(),
+    body:    JSON.stringify({ status })
+  })
+
+  if (res.ok) { showToast(`Marked as ${status}`, 'success'); loadTrialBookings() }
+  else showToast('Failed to update booking', 'error')
+}
+
 function showAddQuestionForm() {
   document.getElementById('add-question-form').style.display = 'block'
   document.getElementById('q-text').value        = ''
@@ -4455,6 +4686,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (page === 'quizzes') loadQuizzes()
         if (page === 'exam-questions') loadExamQuestions()
         if (page === 'reading') loadReadingExercises()
+        if (page === 'trials') switchTrialTab('slots')
       }
 
 

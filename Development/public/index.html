@@ -2397,7 +2397,7 @@ fbq('track', 'PageView');
           <button class="nav-login-btn" onclick="openModal('login')">
             Log In
           </button>
-          <button class="nav-cta" onclick="openModal('register')">
+          <button class="nav-cta" onclick="location.href='#demo-class'">
             Start Free Trial
           </button>
         </div>
@@ -3160,6 +3160,66 @@ fbq('track', 'PageView');
       </button>
     </section>
 
+    <!-- Demo Class Booking -->
+<section id="demo-class" style="padding:5rem 1.5rem;background:#fff;">
+  <div style="max-width:760px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:2.5rem;">
+      <div style="display:inline-block;background:rgba(19,85,160,.08);color:var(--blue);font-size:.78rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.4rem 1.2rem;border-radius:20px;margin-bottom:1rem;">
+        🎯 Free Demo Class
+      </div>
+      <h2 style="font-family:'Libre Baskerville',serif;font-size:2rem;color:var(--navy);margin-bottom:.8rem;">
+        Try a live class before you enroll
+      </h2>
+      <p style="color:var(--muted);font-size:.95rem;max-width:520px;margin:0 auto;">
+        Pick a date, register, and we'll email you the Google Meet link and a reminder.
+      </p>
+    </div>
+
+    <div id="demo-slots-container">
+      <div style="text-align:center;color:var(--muted);padding:2rem;">Loading available classes...</div>
+    </div>
+
+    <div id="demo-form" style="display:none;background:#f8faff;border-radius:16px;padding:2rem;margin-top:1.5rem;border:1.5px solid rgba(19,85,160,.1);">
+      <div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:1.2rem;">
+        Selected: <span id="demo-selected-label" style="color:var(--blue);"></span>
+        <button type="button" onclick="clearDemoSelection()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.78rem;margin-left:.5rem;">✕ Change</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1rem;">
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--navy);display:block;margin-bottom:.4rem;">FULL NAME *</label>
+          <input id="demo-name" maxlength="100" placeholder="Your full name"
+            style="width:100%;padding:.7rem 1rem;border:1.5px solid rgba(19,85,160,.15);border-radius:8px;font-family:'Nunito',sans-serif;font-size:.9rem;"/>
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--navy);display:block;margin-bottom:.4rem;">EMAIL *</label>
+          <input id="demo-email" type="email" placeholder="you@email.com"
+            style="width:100%;padding:.7rem 1rem;border:1.5px solid rgba(19,85,160,.15);border-radius:8px;font-family:'Nunito',sans-serif;font-size:.9rem;"/>
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:700;color:var(--navy);display:block;margin-bottom:.4rem;">PHONE *</label>
+          <input id="demo-phone" type="tel" placeholder="+1 604 555 0000"
+            style="width:100%;padding:.7rem 1rem;border:1.5px solid rgba(19,85,160,.15);border-radius:8px;font-family:'Nunito',sans-serif;font-size:.9rem;"/>
+        </div>
+      </div>
+      <div id="demo-error" style="display:none;background:#FEE2E2;color:#991B1B;padding:.6rem 1rem;border-radius:6px;font-size:.82rem;margin-bottom:1rem;"></div>
+      <button type="button" id="demo-submit" onclick="submitDemoBooking()"
+        style="background:var(--blue);color:#fff;border:none;padding:.9rem 2rem;border-radius:10px;font-size:.92rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;width:100%;">
+        📧 Book My Free Demo Class
+      </button>
+    </div>
+
+    <div id="demo-success" style="display:none;background:#D1FAE5;color:#065F46;padding:1.2rem 1.4rem;border-radius:12px;font-size:.92rem;line-height:1.6;margin-top:1.5rem;text-align:center;"></div>
+    <div id="demo-whatsapp" style="display:none;text-align:center;margin-top:2rem;padding:1.4rem;background:#f8faff;border-radius:12px;border:1.5px solid rgba(19,85,160,.1);">
+  <div style="font-weight:700;color:var(--navy);margin-bottom:.3rem;">None of these times work for you?</div>
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem;">Message Saloni on WhatsApp and she'll find a time that suits you.</div>
+  <a id="demo-whatsapp-link" href="#" target="_blank" rel="noopener"
+    style="display:inline-flex;align-items:center;gap:.5rem;background:#25D366;color:#fff;padding:.7rem 1.6rem;border-radius:10px;text-decoration:none;font-weight:700;font-size:.9rem;">
+    💬 Chat on WhatsApp
+  </a>
+</div>
+  </div>
+</section>
+
     <!-- FOOTER -->
     <footer>
       <div class="foot-top">
@@ -3887,6 +3947,8 @@ async function loadReviews() {
         "1on1": "1-on-1 Private Classes",
       };
 
+      
+
       // ── DASHBOARD ──────────────────────────────────────
       async function openDashboard() {
         document.getElementById("dashModal").classList.add("open");
@@ -4032,5 +4094,7 @@ loadExamTeaser()
           if (e.target === this) closeDashboard();
         });
     </script>
+    <script src="/js/utils.js"></script>
+<script src="/js/demo.js"></script>
   </body>
 </html>
