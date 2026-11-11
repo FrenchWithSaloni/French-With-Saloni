@@ -32,13 +32,13 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:    ["'self'"],
-      scriptSrc:     ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc:     ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://connect.facebook.net"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc:      ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:       ["'self'", "https://fonts.gstatic.com"],
       imgSrc:        ["'self'", "data:", "https:"],
       mediaSrc:      ["'self'", "https://*.supabase.co"],
-      connectSrc:    ["'self'", "https://*.supabase.co", "https://api.stripe.com"],
+      connectSrc: ["'self'", "https://*.supabase.co", "https://api.stripe.com", "https://www.facebook.com", "https://connect.facebook.net"],
       frameSrc: ["'self'", "https://js.stripe.com", "https://checkout.stripe.com", "https://drive.google.com", "https://accounts.google.com", "https://*.supabase.co"],
     }
   }
