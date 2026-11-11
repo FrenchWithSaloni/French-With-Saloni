@@ -13,6 +13,7 @@ const verifyJWT = async (req, res, next) => {
     const { data: { user }, error } = await supabase.auth.getUser(token)
 
     if (error || !user) {
+      console.error('JWT verify error:', err.message)
       return res.status(403).json({ error: 'Invalid or expired token' })
     }
 

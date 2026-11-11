@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { register, login, logout, getMe } from '../controllers/authController.js'
 import verifyJWT from '../middleware/verifyJWT.js'
 import supabase from '../lib/supabase.js'
+import { createClient } from '@supabase/supabase-js'
 const router = Router()
 
 router.post('/register', register)
@@ -85,6 +86,32 @@ router.post('/reset-password', async (req, res) => {
   }
 
   return res.status(200).json({ message: 'Password updated successfully' })
+})
+
+// Separate client so refreshing a student's session never touches the shared service client
+const authClient = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+)
+
+// POST refresh an expired session
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body
+  if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' })
+
+  const { data, error } = await authClient.auth.refreshSession({ refresh_token: refreshToken })
+
+  if (error || !data?.session) {
+    // No status = couldn't reach Supabase: don't log the student out for that
+    const transient = error && (!error.status || error.status >= 500)
+    return res.status(transient ? 503 : 401).json({ error: 'Session expired. Please log in again.' })
+  }
+
+  return res.status(200).json({
+    accessToken:  data.session.access_token,
+    refreshToken: data.session.refresh_token
+  })
 })
 
 export default router

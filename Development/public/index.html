@@ -3454,6 +3454,7 @@ fbq('track', 'PageView');
             );
           } else {
             setToken(data.accessToken);
+            if (data.refreshToken) setRefreshToken(data.refreshToken)
             setUser(data.user);
             updateNavState();
             closeModal();
@@ -3500,6 +3501,7 @@ fbq('track', 'PageView');
             );
           } else {
             setToken(data.accessToken);
+            if (data.refreshToken) setRefreshToken(data.refreshToken)
             setUser(data.user);
             updateNavState();
             closeModal();
@@ -3742,12 +3744,13 @@ fbq('track', 'PageView');
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          if (!res.ok) {
-            // Token expired or invalid — clear everything
-            clearAuth();
-            updateNavState();
-            return;
-          }
+          if (res.status === 401) {
+  // Session truly expired and couldn't be renewed
+  clearAuth();
+  updateNavState();
+  return;
+}
+if (!res.ok) return; 
 
           const data = await res.json();
           // Update stored user with fresh data from server

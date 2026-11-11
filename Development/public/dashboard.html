@@ -1071,11 +1071,17 @@ b2: [
   headers: { Authorization: `Bearer ${token}` },
 });
 
-          if (res.status === 401 || res.status === 403) {
-            clearAuth();
-            window.location.href = "./index.html";
-            return;
-          }
+          if (res.status === 401) {
+  clearAuth()
+  window.location.href = './index.html'
+  return
+}
+
+if (!res.ok) {
+  document.getElementById('loading-state').style.display = 'none'
+  showToast('Could not reach the server. Please refresh in a moment.', 'error')
+  return
+}
 
           const data = await res.json();
 
