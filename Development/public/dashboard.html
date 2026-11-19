@@ -937,7 +937,7 @@ fbq('track', 'PageView');
         style="width:100%;padding:1rem 1.2rem;border:2px solid rgba(19,85,160,.15);border-radius:14px;font-family:'Nunito',sans-serif;font-size:.95rem;outline:none;background:#fff;box-shadow:0 2px 8px rgba(10,35,66,.05);"
         onfocus="this.style.borderColor='var(--blue)'"
         onblur="this.style.borderColor='rgba(19,85,160,.15)'"
-        onkeydown="if(event.key==='Enter') submitCurrentAnswer()"/>
+        onkeydown="if(event.key==='Enter'){event.preventDefault();submitCurrentAnswer()}"/>
       <button onclick="submitCurrentAnswer()"
         style="margin-top:.8rem;width:100%;background:var(--blue);color:#fff;border:none;padding:1rem;border-radius:14px;font-size:.92rem;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;">
         Submit Answer ›
@@ -2391,6 +2391,7 @@ function showKahootQuestion(index) {
     optionsGrid.style.display = 'none'
     textWrap.style.display    = 'block'
     textInput.value           = ''
+    textInput.disabled = false
     textInput.focus()
   }
 
@@ -2420,13 +2421,16 @@ function showKahootQuestion(index) {
     }
 
     if (timeLeft <= 0) {
-      clearInterval(kahootTimer)
-      if (!currentQuizAttempt.answered) {
-        // Time's up — mark as no answer
-        currentQuizAttempt.answers[currentQuizAttempt.questions[index].id] = ''
-const explanation = currentQuizAttempt.questions[index].explanation
-showKahootFeedback(false, 'Time\'s up!', null, explanation)      }
-    }
+  clearInterval(kahootTimer)
+  if (!currentQuizAttempt.answered) {
+    currentQuizAttempt.answered = true
+    const cq     = currentQuizAttempt.questions[index]
+    const typed  = cq.question_type === 'mcq' ? '' : textInput.value.trim()
+    currentQuizAttempt.answers[cq.id] = typed
+    textInput.disabled = true
+    showKahootFeedback(false, typed ? "Time's up! Your answer was recorded." : "Time's up!", null, cq.explanation)
+  }
+}
   }, 1000)
 }
 
@@ -2459,6 +2463,28 @@ const explanation = currentQuizAttempt.questions[currentQuizAttempt.currentIndex
 showKahootFeedback(null, '✓ Answer recorded!', btn, explanation)
 }
 
+function submitCurrentAnswer() {
+  if (!currentQuizAttempt || currentQuizAttempt.answered) return
+
+  const textInput = document.getElementById('kahoot-text-input')
+  const value     = textInput ? textInput.value.trim() : ''
+
+  if (!value) {
+    showToast('Please type your answer first', 'error')
+    textInput?.focus()
+    return
+  }
+
+  clearInterval(kahootTimer)
+  currentQuizAttempt.answered = true
+
+  const q = currentQuizAttempt.questions[currentQuizAttempt.currentIndex]
+  currentQuizAttempt.answers[q.id] = value
+
+  if (textInput) textInput.disabled = true
+  showKahootFeedback(null, '✓ Answer recorded!', null, q.explanation)
+}
+
 function showKahootFeedback(correct, message, btn, explanation) {
   const feedback = document.getElementById('kahoot-feedback')
   const text     = document.getElementById('kahoot-feedback-text')
@@ -2485,10 +2511,13 @@ function showKahootFeedback(correct, message, btn, explanation) {
     ` : ''}
   `
 
-  // Auto-advance — give more time if there's an explanation
-  const delay = explanation ? 3000 : 1500
+   // Auto-advance — give more time if there's an explanation
+  const shownFor = currentQuizAttempt.currentIndex
+  const delay    = explanation ? 3000 : 1500
+
   setTimeout(() => {
-    const next = currentQuizAttempt.currentIndex + 1
+    if (!currentQuizAttempt || currentQuizAttempt.currentIndex !== shownFor) return  // already moved on
+    const next = shownFor + 1
     if (next < currentQuizAttempt.questions.length) {
       showKahootQuestion(next)
     } else {
@@ -2496,6 +2525,7 @@ function showKahootFeedback(correct, message, btn, explanation) {
     }
   }, delay)
 }
+
 
 async function finishKahootQuiz() {
   clearInterval(kahootTimer)
